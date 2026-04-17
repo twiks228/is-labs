@@ -1,0 +1,122 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Арена</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f0f23;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px
+        }
+
+        h2 {
+            color: #2ecc71
+        }
+
+        canvas {
+            border: 2px solid #16213e;
+            border-radius: 10px;
+            background: #1a1a2e
+        }
+
+        #enter {
+            margin: 10px
+        }
+
+            #enter input, #enter button {
+                padding: 10px;
+                font-size: 16px;
+                border-radius: 8px;
+                border: none
+            }
+
+            #enter input {
+                width: 180px;
+                background: #16213e;
+                color: #eee
+            }
+
+            #enter button {
+                background: #2ecc71;
+                color: #fff;
+                cursor: pointer;
+                margin-left: 8px
+            }
+
+        p {
+            color: #888;
+            font-size: 13px
+        }
+
+        a {
+            color: #888;
+            margin-top: 14px
+        }
+    </style>
+</head>
+<body>
+    <h2>🟢 Арена — WASD мультиплеер</h2>
+    <div id="enter">
+        <input id="nick" placeholder="Ваше имя">
+        <button onclick="go()">Войти</button>
+    </div>
+    <canvas id="c" width="800" height="600" style="display:none"></canvas>
+    <p>Управление: W A S D</p>
+    <a href="/">← Назад</a>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+let conn,players=[];
+const keys={};
+
+function go(){
+  const name=document.getElementById('nick').value.trim()||'Игрок';
+  document.getElementById('enter').style.display='none';
+  canvas.style.display='block';
+
+  conn=new signalR.HubConnectionBuilder().withUrl('/hubs/arena').build();
+  conn.on('State',p=>{players=p;draw();});
+  conn.start().then(()=>conn.invoke('Enter',name));
+
+  document.addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);
+  document.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+  setInterval(tick,30);
+}
+
+function tick(){
+  if(!conn)return;
+  if(keys['w'])conn.invoke('Move','w');
+  if(keys['s'])conn.invoke('Move','s');
+  if(keys['a'])conn.invoke('Move','a');
+  if(keys['d'])conn.invoke('Move','d');
+}
+
+function draw(){
+  ctx.clearRect(0,0,800,600);
+
+  // сетка
+  ctx.strokeStyle='#222244';
+  for(let x=0;x<800;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,600);ctx.stroke();}
+  for(let y=0;y<600;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(800,y);ctx.stroke();}
+
+  // игроки
+  players.forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,14,0,Math.PI*2);
+    ctx.fillStyle=p.c;
+    ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+
+    ctx.fillStyle='#fff';ctx.font='bold 12px Arial';ctx.textAlign='center';
+    ctx.fillText(p.n,p.x,p.y-20);
+  });
+}
+    </script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Крестики-Нолики</title>
+    <style>
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: Arial;
+            background: #0f0f23;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 30px
+        }
+
+        h2 {
+            color: #e94560
+        }
+
+        #join {
+            margin: 10px
+        }
+
+            #join input, #join button {
+                padding: 10px;
+                font-size: 16px;
+                border-radius: 8px;
+                border: none
+            }
+
+            #join input {
+                width: 200px;
+                background: #16213e;
+                color: #eee
+            }
+
+            #join button {
+                background: #e94560;
+                color: #fff;
+                cursor: pointer;
+                margin-left: 8px
+            }
+
+        #info {
+            margin: 10px;
+            font-size: 18px;
+            min-height: 28px;
+            color: #0f3460
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3,100px);
+            gap: 6px;
+            margin: 10px
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            background: #16213e;
+            border: none;
+            border-radius: 10px;
+            font-size: 44px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #eee;
+            transition: .2s
+        }
+
+            .cell:hover {
+                background: #1a1a4e
+            }
+
+            .cell.X {
+                color: #e94560
+            }
+
+            .cell.O {
+                color: #3498db
+            }
+
+        #rst {
+            margin: 14px;
+            padding: 10px 30px;
+            font-size: 16px;
+            background: #2ecc71;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: none
+        }
+
+        a {
+            color: #888;
+            margin-top: 20px
+        }
+    </style>
+</head>
+<body>
+    <h2>❌⭕ Крестики-Нолики</h2>
+
+    <div id="join">
+        <input id="room" placeholder="Имя комнаты" value="room1">
+        <button onclick="join()">Войти</button>
+    </div>
+    <div id="info"></div>
+
+    <div class="board" id="board"></div>
+    <button id="rst" onclick="reset()">Заново</button>
+    <a href="/">← Назад</a>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+const board=document.getElementById('board'),info=document.getElementById('info'),rstBtn=document.getElementById('rst');
+let conn,myRole='',roomName='';
+
+for(let i=0;i<9;i++){
+  const b=document.createElement('button');
+  b.className='cell';b.dataset.i=i;
+  b.onclick=()=>conn&&conn.invoke('Move',roomName,i);
+  board.appendChild(b);
+}
+const cells=board.querySelectorAll('.cell');
+
+function join(){
+  roomName=document.getElementById('room').value.trim()||'room1';
+  conn=new signalR.HubConnectionBuilder().withUrl('/hubs/tictactoe').build();
+  conn.on('Role',r=>{myRole=r;info.textContent='Вы: '+r+'. Ждём второго игрока…';});
+  conn.on('Go',t=>info.textContent='Ход: '+t+(t===myRole?' (ваш)':''));
+  conn.on('Moved',(i,s)=>{cells[i].textContent=s;cells[i].classList.add(s);});
+  conn.on('End',w=>{
+    if(w==='draw')info.textContent='Ничья!';
+    else if(w==='disconnect')info.textContent='Соперник отключился';
+    else info.textContent='Победил '+w+'!';
+    rstBtn.style.display='inline-block';
+  });
+  conn.on('Rst',()=>{cells.forEach(c=>{c.textContent='';c.className='cell';});rstBtn.style.display='none';});
+  conn.on('Err',m=>info.textContent=m);
+  conn.start().then(()=>conn.invoke('Join',roomName));
+  document.getElementById('join').style.display='none';
+}
+
+function reset(){conn.invoke('Reset',roomName);}
+    </script>
+</body>
+</html>
